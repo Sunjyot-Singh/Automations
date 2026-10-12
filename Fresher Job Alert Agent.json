@@ -1,0 +1,555 @@
+{
+  "name": "Fresher Job Alert Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 10
+            }
+          ]
+        }
+      },
+      "id": "94aed301-93b0-4807-a0e3-8a204dd92efa",
+      "name": "Daily 9AM Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1328,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Config",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "23659950-6627-4137-a11d-495244118b1c",
+      "name": "Read Config Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -1104,
+        320
+      ],
+      "notes": "Columns: keyword | location | active (TRUE/FALSE) | exclude (comma-separated, optional)"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.active }}",
+              "rightValue": "TRUE",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "dca11928-4c4a-427d-a8dd-845307c4c27e",
+      "name": "Keep Active Rows Only",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        -880,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "e1eff7fd-7abd-4efe-858d-fb757a16dc30",
+      "name": "Loop Each Keyword+Location",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -656,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: \"llama-3.1-8b-instant\", messages: [ { role: \"system\", content: \"You expand a single job-search keyword into a JSON array of 6-10 closely related job title/skill terms a fresher-friendly job posting might use. Reply with ONLY a JSON array of strings, no prose.\" }, { role: \"user\", content: $json.keyword } ], temperature: 0.3 }) }}",
+        "options": {}
+      },
+      "id": "e2ade466-561e-4221-b6b7-cf987d4f1685",
+      "name": "Expand Keyword (Groq)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -448,
+        160
+      ],
+      "notes": "HTTP Header Auth credential: Authorization: Bearer YOUR_GROQ_KEY"
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('Loop Each Keyword+Location').first().json;\nlet terms;\ntry {\n  const raw = $input.first().json.choices[0].message.content;\n  terms = JSON.parse(raw);\n} catch (e) {\n  terms = [cfg.keyword];\n}\nconst exclude = (cfg.exclude || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);\nreturn [{\n  json: {\n    keyword: cfg.keyword,\n    location: cfg.location,\n    expandedTerms: terms.map(t => String(t).toLowerCase()),\n    excludeTerms: exclude\n  }\n}];"
+      },
+      "id": "b8ff92a5-cf3a-4198-8721-8b4253ed114e",
+      "name": "Parse Expanded Terms",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -224,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://arbeitnow.com/api/job-board-api",
+        "options": {}
+      },
+      "id": "cd8af245-04a8-4d43-abb1-13b04fc7491b",
+      "name": "Fetch Arbeitnow Jobs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://remoteok.com/api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "998a1920-f789-4e26-b688-647b6e611a1f",
+      "name": "Fetch RemoteOK Jobs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        0,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.adzuna.com/v1/api/jobs/in/search/1?app_id=YOUR_ADZUNA_APP_ID&app_key=YOUR_ADZUNA_APP_KEY&results_per_page=20&what={{ encodeURIComponent($json.keyword) }}&where={{ encodeURIComponent($json.location) }}&max_days_old=3",
+        "options": {}
+      },
+      "id": "3686efee-8cf4-463a-aabf-142f7fcd3ef4",
+      "name": "Fetch Adzuna Jobs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        0,
+        320
+      ],
+      "notes": "Free key+app_id at developer.adzuna.com. URL uses /in/ for India - change to /us/, /gb/ etc for other countries if needed."
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $('Parse Expanded Terms').first().json;\nconst terms = ctx.expandedTerms.concat([ctx.keyword.toLowerCase()]);\nconst exclude = ctx.excludeTerms || [];\nconst location = (ctx.location || '').toLowerCase();\n\nconst freshTerms = ['fresher','entry level','entry-level','graduate','junior','0-1 year','0-2 years','trainee','new grad'];\nconst seniorExclude = ['senior','staff','principal',' lead ','5+ years','7+ years','10+ years'];\n\nlet arb = [];\ntry { arb = $('Fetch Arbeitnow Jobs').first().json.data || []; } catch(e) {}\nlet rok = [];\ntry {\n  const rokRaw = $('Fetch RemoteOK Jobs').first().json;\n  rok = Array.isArray(rokRaw) ? rokRaw.slice(1) : [];\n} catch(e) {}\nlet adz = [];\ntry { adz = $('Fetch Adzuna Jobs').first().json.results || []; } catch(e) {}\n\nconst normalized = [];\n\nfor (const j of arb) {\n  normalized.push({ id: 'arbeitnow-' + j.slug, title: j.title, company: j.company_name, location: j.location || (j.remote ? 'Remote' : ''), url: j.url, text: (j.title + ' ' + (j.description || '')).toLowerCase() });\n}\nfor (const j of rok) {\n  if (!j || !j.position) continue;\n  normalized.push({ id: 'remoteok-' + (j.id || j.slug), title: j.position, company: j.company, location: j.location || 'Remote', url: j.url || ('https://remoteok.com/remote-jobs/' + j.id), text: (j.position + ' ' + (j.description || '') + ' ' + (j.tags || []).join(' ')).toLowerCase() });\n}\nfor (const j of adz) {\n  normalized.push({ id: 'adzuna-' + j.id, title: j.title, company: (j.company && j.company.display_name) || '', location: (j.location && j.location.display_name) || '', url: j.redirect_url, text: (j.title + ' ' + (j.description || '')).toLowerCase() });\n}\n\nconst matched = normalized.filter(j => {\n  const matchesKeyword = terms.some(t => j.text.includes(t));\n  const hasExcluded = exclude.some(t => t && j.text.includes(t));\n  const matchesLocation = !location || location === 'remote' ? true : (j.location || '').toLowerCase().includes(location) || j.text.includes('remote');\n  const isSenior = seniorExclude.some(t => j.text.includes(t));\n  return matchesKeyword && !hasExcluded && matchesLocation && !isSenior;\n});\n\n// cap candidates sent to the LLM classifier to control cost/tokens\nconst capped = matched.slice(0, 25);\n\nreturn capped.map(j => ({ json: { ...j, searchKeyword: ctx.keyword, searchLocation: ctx.location } }));"
+      },
+      "id": "e48bba90-227c-484b-a43e-91428c0b2adc",
+      "name": "Merge + Coarse Filter",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const candidates = $input.all().map(i => i.json);\nconst compact = candidates.map(c => ({ id: c.id, title: c.title, company: c.company, snippet: (c.text || '').slice(0, 300) }));\nreturn [{ json: { candidatesJson: JSON.stringify(compact), count: compact.length } }];"
+      },
+      "id": "444927ba-cd24-4a86-91a9-7e506a7d7d9d",
+      "name": "Build Classification Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        464,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ model: \"llama-3.1-8b-instant\", messages: [ { role: \"system\", content: \"You are a strict job-relevance filter for a final-year engineering student who is a job-seeking fresher (0-1 years experience). You will receive a JSON array of candidate jobs, each with id, title, company, snippet. For EACH job decide: relevant (does it genuinely match the implied search intent, not just a loose word overlap) and fresherFriendly (suitable for 0-1 years experience, not senior/lead/manager level). Reply with ONLY a JSON array, same length and order as input, like [{\\\"id\\\":\\\"...\\\",\\\"relevant\\\":true,\\\"fresherFriendly\\\":true}]. No prose, no markdown fences.\" }, { role: \"user\", content: $json.candidatesJson } ], temperature: 0 }) }}",
+        "options": {}
+      },
+      "id": "9cd0e170-6481-43ed-8f5c-803be2e63ea2",
+      "name": "Classify Jobs (Groq)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        688,
+        160
+      ],
+      "notes": "This is the precision step - reads each job and judges real relevance + experience fit, instead of relying on keyword overlap alone."
+    },
+    {
+      "parameters": {
+        "jsCode": "let decisions = [];\ntry {\n  const raw = $input.first().json.choices[0].message.content;\n  const cleaned = raw.replace(/```json|```/g, '').trim();\n  decisions = JSON.parse(cleaned);\n} catch (e) {\n  decisions = [];\n}\nconst decisionMap = new Map(decisions.map(d => [d.id, d]));\nconst candidates = $('Merge + Coarse Filter').all().map(i => i.json);\nconst kept = candidates.filter(c => {\n  const d = decisionMap.get(c.id);\n  return d && d.relevant === true && d.fresherFriendly === true;\n});\nreturn kept.map(c => ({ json: c }));"
+      },
+      "id": "42ec09ab-34dd-4412-b2be-933fbb9b927e",
+      "name": "Apply Classification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        912,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "SentLog",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "7b27a961-b273-4d0c-a3c4-d5ff4a92efa3",
+      "name": "Read Sent Log",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1120,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const sentIds = new Set($('Read Sent Log').all().map(i => i.json.job_id));\nreturn $input.all().filter(item => !sentIds.has(item.json.id));"
+      },
+      "id": "b0132a55-3a1d-4d9b-b545-6a70b32f6c7a",
+      "name": "Remove Already-Sent Jobs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1344,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "=🎯 {{ $json.title }}\\n🏢 {{ $json.company }}\\n📍 {{ $json.location }}\\n🔎 matched: {{ $json.searchKeyword }} / {{ $json.searchLocation }}\\n🔗 {{ $json.url }}",
+        "additionalFields": {}
+      },
+      "id": "d1f85f28-10c1-4aa2-858a-61c5bbd3dfa8",
+      "name": "Send Telegram Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1568,
+        160
+      ],
+      "webhookId": "6335a68e-4aa5-45a2-872e-647a1f700c92"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "SentLog",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "job_id": "={{ $json.id }}",
+            "title": "={{ $json.title }}",
+            "company": "={{ $json.company }}",
+            "date_sent": "={{ $now.toISO() }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "ad11319e-c8e6-41a6-a317-194bab0bbe7f",
+      "name": "Log to SentLog",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1792,
+        160
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Daily 9AM Trigger": {
+      "main": [
+        [
+          {
+            "node": "Read Config Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Config Sheet": {
+      "main": [
+        [
+          {
+            "node": "Keep Active Rows Only",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Keep Active Rows Only": {
+      "main": [
+        [
+          {
+            "node": "Loop Each Keyword+Location",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Each Keyword+Location": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Expand Keyword (Groq)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Expand Keyword (Groq)": {
+      "main": [
+        [
+          {
+            "node": "Parse Expanded Terms",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Expanded Terms": {
+      "main": [
+        [
+          {
+            "node": "Fetch Arbeitnow Jobs",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch RemoteOK Jobs",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Adzuna Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Arbeitnow Jobs": {
+      "main": [
+        [
+          {
+            "node": "Merge + Coarse Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch RemoteOK Jobs": {
+      "main": [
+        [
+          {
+            "node": "Merge + Coarse Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Adzuna Jobs": {
+      "main": [
+        [
+          {
+            "node": "Merge + Coarse Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge + Coarse Filter": {
+      "main": [
+        [
+          {
+            "node": "Build Classification Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Classification Prompt": {
+      "main": [
+        [
+          {
+            "node": "Classify Jobs (Groq)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify Jobs (Groq)": {
+      "main": [
+        [
+          {
+            "node": "Apply Classification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apply Classification": {
+      "main": [
+        [
+          {
+            "node": "Read Sent Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Sent Log": {
+      "main": [
+        [
+          {
+            "node": "Remove Already-Sent Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Remove Already-Sent Jobs": {
+      "main": [
+        [
+          {
+            "node": "Send Telegram Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Telegram Alert": {
+      "main": [
+        [
+          {
+            "node": "Log to SentLog",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Loop Each Keyword+Location",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "934493d8-290f-4612-8b56-ed6b38d985a9",
+  "meta": {
+    "instanceId": "5fc351caf852576b5f853a90c292eecb0843a5dd7e6431246639aafa8f7f816b"
+  },
+  "nodeGroups": [],
+  "id": "t9OHNzdGQ50pbip9",
+  "tags": []
+}
