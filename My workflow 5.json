@@ -1,0 +1,585 @@
+{
+  "name": "My workflow 5",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "2b249398-db9d-422f-ad81-332b73e393b2",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "d8f39b36-0a7e-4598-a4ed-768b67d05d48",
+      "name": "Webhook",
+      "webhookId": "2b249398-db9d-422f-ad81-332b73e393b2"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer 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"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"llama-3.1-8b-instant\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Classify this lead inquiry as HOT, WARM, or COLD based on urgency and buying intent. Reply with just one word. Message: {{$json.body.message}}\"\n    }\n  ],\n  \"temperature\": 0.1\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        208,
+        0
+      ],
+      "id": "678b7795-0526-4c4c-8639-edf326393e6f",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer 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"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"llama-3.1-8b-instant\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Write a warm, professional follow-up email to {{ $('Webhook').item.json.body.name }} who said: '{{ $('Webhook').item.json.body.message }}'. Keep it under 100 words, friendly but not pushy. Sign as 'The Team'.\"\n    }\n  ],\n  \"temperature\": 0.4\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        816,
+        -128
+      ],
+      "id": "81ce3dac-40ea-4ea9-8d04-88581acbc506",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "sendTo": "sunjyotsingh5@gmail.com",
+        "subject": "Website Support Request - Test",
+        "emailType": "text",
+        "message": "={{ $json.choices[0].message.content }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1024,
+        16
+      ],
+      "id": "6dcb6224-ef20-4de0-acaa-96b838a5e80f",
+      "name": "Send a message",
+      "webhookId": "294032fd-cb41-4ece-9c13-fdab436fcb5c",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "TdmllAa0G2B3tkLP",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1uWzEENJcUTcVnFdgHzaDxc4v438vc0Z5meOAydfIz1A",
+          "mode": "list",
+          "cachedResultName": "Test_Sheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1uWzEENJcUTcVnFdgHzaDxc4v438vc0Z5meOAydfIz1A/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1uWzEENJcUTcVnFdgHzaDxc4v438vc0Z5meOAydfIz1A/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Name": "={{ $('Webhook').item.json.body.name }}",
+            "Email": "={{ $('Webhook').item.json.body.email }}",
+            "Message": "={{ $('Webhook').item.json.body.message }}",
+            "Urgency": "={{ $('HTTP Request').item.json.choices[0].message.content }}",
+            "Draft Sent": "={{ $('HTTP Request1').item.json.choices[0].message.content }}"
+          },
+          "matchingColumns": [
+            "Email"
+          ],
+          "schema": [
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Message",
+              "displayName": "Message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Urgency",
+              "displayName": "Urgency",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Draft Sent",
+              "displayName": "Draft Sent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1248,
+        16
+      ],
+      "id": "e39b7e89-0c33-416a-8ac2-0c9898017b85",
+      "name": "Append or update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "m3iaoaB1dYR0ZaIQ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "8c269341-eee2-46be-b1bd-480f442b581b",
+              "leftValue": "={{ $('HTTP Request').item.json.choices[0].message.content }}",
+              "rightValue": "HOT",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "f5935fc3-d735-4cd4-8d0a-c5794eb69a1e",
+              "leftValue": "",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        416,
+        0
+      ],
+      "id": "009d5795-9a8c-4188-9ece-cb92adf9825a",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "sendTo": "sunjyotsingh5@gmail.com",
+        "subject": "=🚨 URGENT HOT LEAD: {{ $('Webhook').item.json.body.name }}",
+        "emailType": "text",
+        "message": "=You have a HOT lead that needs immediate attention! \\n\\nMessage: {{ $('Webhook').item.json.body.message }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        608,
+        -128
+      ],
+      "id": "bcf75862-742d-4930-bf62-5d582ac50682",
+      "name": "Send a message1",
+      "webhookId": "48470fa5-ce34-40f4-9731-a63ba546c77f",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "TdmllAa0G2B3tkLP",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        288,
+        208
+      ],
+      "id": "8b64634c-3c33-49de-befd-e2bc100fe688",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1uWzEENJcUTcVnFdgHzaDxc4v438vc0Z5meOAydfIz1A",
+          "mode": "list",
+          "cachedResultName": "Test_Sheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1uWzEENJcUTcVnFdgHzaDxc4v438vc0Z5meOAydfIz1A/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1uWzEENJcUTcVnFdgHzaDxc4v438vc0Z5meOAydfIz1A/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        496,
+        208
+      ],
+      "id": "f8b03660-a12f-46c7-a79b-3d36d132366c",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "m3iaoaB1dYR0ZaIQ",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "6acb4ba6-bc68-4f53-a666-b07f383f2e72",
+              "leftValue": "={{ $json.Responded }}",
+              "rightValue": "Yes",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        704,
+        208
+      ],
+      "id": "f1d8cbfb-bb2d-42a1-aa82-8e1c31b7906c",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "sendTo": "sunjyotsingh5@gmail.com",
+        "subject": "Following up: Website Repair",
+        "emailType": "text",
+        "message": "=Hi {{ $json.Name }}, just following up to see if you received our previous email and if you're still looking for help with your website!",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        912,
+        304
+      ],
+      "id": "dbb44789-4831-444a-a39f-0d29b106a454",
+      "name": "Send a message2",
+      "webhookId": "5c0cc34e-a444-43cb-be5d-7fdabeca0a5a",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "TdmllAa0G2B3tkLP",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        64,
+        -320
+      ],
+      "id": "9ac68dfb-e8c0-4562-a512-b56c67a0de90",
+      "name": "Error Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1uWzEENJcUTcVnFdgHzaDxc4v438vc0Z5meOAydfIz1A",
+          "mode": "list",
+          "cachedResultName": "Test_Sheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1uWzEENJcUTcVnFdgHzaDxc4v438vc0Z5meOAydfIz1A/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1457280329,
+          "mode": "list",
+          "cachedResultName": "Error_Logs",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1uWzEENJcUTcVnFdgHzaDxc4v438vc0Z5meOAydfIz1A/edit#gid=1457280329"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Execution Time": "={{ $now }}",
+            "Error Message": "={{ $json.execution.error.message }}"
+          },
+          "matchingColumns": [
+            "Execution Time"
+          ],
+          "schema": [
+            {
+              "id": "Execution Time",
+              "displayName": "Execution Time",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Error Message",
+              "displayName": "Error Message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        272,
+        -320
+      ],
+      "id": "fbe37ea3-d7cb-47ab-bb1e-09d81cddb574",
+      "name": "Append or update row in sheet1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "m3iaoaB1dYR0ZaIQ",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Send a message1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a message1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Send a message2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "00b93c6f-3557-4ae3-9efe-7e8dc85b756a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "5fc351caf852576b5f853a90c292eecb0843a5dd7e6431246639aafa8f7f816b"
+  },
+  "nodeGroups": [],
+  "id": "rJlrGQgl25b97IbU",
+  "tags": []
+}
